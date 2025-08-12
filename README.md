@@ -2,101 +2,132 @@
 
 WanderMind AI is an interactive **Streamlit** application that uses **LangGraph** multi-agent workflows and **AWS Bedrock** LLMs to design personalized travel itineraries based on destinations, budget, dates, and interests.
 
+---
+
 ## 🚀 Features
-- **Multi-Agent Workflow** with LangGraph
-- **AWS Bedrock Models** for research, budget optimization, and itinerary composition
-- **Interactive Streamlit UI**
-- **Downloadable Itinerary** in plain text
-- **Customizable** destinations, dates, budget, and interests
+- **Multi-Agent Workflow** with LangGraph  
+- **AWS Bedrock Models** for research, budget optimization, and itinerary composition  
+- **Interactive Streamlit UI**  
+- **Downloadable Itinerary** in plain text  
+- **Customizable** destinations, dates, budget, and interests  
+
+---
 
 ## 🛠 Tech Stack
-- **Python 3.10+**
-- **Streamlit** – Web UI
-- **LangGraph** – Agent-to-Agent protocol
-- **AWS Bedrock** – LLM hosting
-- **Boto3** – AWS SDK for Python
-- **Dotenv** – Environment variable loading
+- **Python 3.10+**  
+- **Streamlit** – Web UI  
+- **LangGraph** – Agent-to-Agent protocol  
+- **AWS Bedrock** – LLM hosting  
+- **Boto3** – AWS SDK for Python  
+- **Dotenv** – Environment variable loading  
+
+---
 
 ## 📂 Project Structure
+```
 itineraryPlanner/
-│-- app.py # Main Streamlit app
-│-- requirements.txt # Dependencies
-│-- .env # AWS credentials & region
+│-- app.py              # Main Streamlit app
+│-- requirements.txt    # Dependencies
+│-- .env                # AWS credentials & region
+│-- tests/              # Unit tests
+│-- README.md           # Documentation
+│-- .gitignore          # Ignored files
+```
+
+---
 
 ## ⚙️ Installation
 
-1. **Clone the repository**
+### 1️⃣ Clone the repository
 ```bash
 git clone https://github.com/yourusername/wandermind-ai.git
 cd wandermind-ai
-Create a virtual environment
+```
 
-bash
-Copy
-Edit
+### 2️⃣ Create a virtual environment
+```bash
 python -m venv .venv
-Activate the virtual environment
+```
 
-Windows
+### 3️⃣ Activate the virtual environment
 
-bash
-Copy
-Edit
+**Windows**
+```bash
 .venv\Scripts\activate
-macOS/Linux
+```
 
-bash
-Copy
-Edit
+**macOS/Linux**
+```bash
 source .venv/bin/activate
-Install dependencies
+```
 
-bash
-Copy
-Edit
+### 4️⃣ Install dependencies
+```bash
 pip install -r requirements.txt
-Configure AWS credentials in a .env file:
+```
 
-ini
-Copy
-Edit
+### 5️⃣ Configure AWS credentials  
+Create a `.env` file in the root directory:
+```ini
 AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 AWS_REGION=us-east-1
-Make sure your AWS account has Bedrock access and is allowed to use the chosen models.
+```
+> Make sure your AWS account has Bedrock access and is allowed to use the chosen models.
 
-▶️ Running the Application
-bash
-Copy
-Edit
+---
+
+## ▶️ Running the Application
+```bash
 streamlit run app.py
-Open the URL provided in the terminal (usually http://localhost:8501).
+```
+Then open the URL provided in the terminal (usually [http://localhost:8501](http://localhost:8501)).
 
-🧪 Running Tests
-bash
-Copy
-Edit
+---
+
+## 🧪 Running Tests
+```bash
 pytest
-📌 Example Usage
-Enter destinations: Paris, Rome
+```
 
-Enter travel dates: 2025-09-10 to 2025-09-17
+---
 
-Set budget: 2000
+## 📌 Example Usage
+1. Enter destinations:  
+   ```
+   Paris, Rome
+   ```
+2. Enter travel dates:  
+   ```
+   2025-09-10 to 2025-09-17
+   ```
+3. Set budget:  
+   ```
+   2000
+   ```
+4. Add interests:  
+   ```
+   history, art, food
+   ```
+5. Click **Generate Itinerary** and download your plan.
 
-Add interests: history, art, food
+---
 
-Click Generate Itinerary and download your plan.
+## ⚠️ Common Issues
+- **`AccessDeniedException`**  
+  Your AWS account doesn't have access to the selected Bedrock model.  
+  Enable the model in **AWS Console → Bedrock → Model Access**.
 
-⚠️ Common Issues
-AccessDeniedException: Your AWS account doesn't have access to the selected Bedrock model. Enable the model in the AWS Console → Bedrock → Model Access.
+- **`ModuleNotFoundError`**  
+  Install missing dependencies:
+  ```bash
+  pip install -r requirements.txt
+  ```
 
-ModuleNotFoundError: Install missing dependencies with pip install -r requirements.txt.
+- **`NameError: BedrockChat`**  
+  Ensure you are using the correct import for Bedrock models.
 
-NameError: BedrockChat: Ensure you are using the correct import for Bedrock.
+---
 
-📜 License
-This project is licensed under the MIT License.
-
-
-│-- README.md # Project documentation
+## 📜 License
+This project is licensed under the **MIT License**.
