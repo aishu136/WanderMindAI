@@ -87,7 +87,7 @@ Then open the URL provided in the terminal (usually [http://localhost:8501](http
 
 ## 🧪 Running Tests
 ```bash
-pytest
+pytest test_app.py
 ```
 
 ---
