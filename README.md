@@ -29,7 +29,7 @@ itineraryPlanner/
 │-- app.py              # Main Streamlit app
 │-- requirements.txt    # Dependencies
 │-- .env                # AWS credentials & region
-│-- tests/              # Unit tests
+│-- test_app.py              # Unit tests
 │-- README.md           # Documentation
 │-- .gitignore          # Ignored files
 ```
