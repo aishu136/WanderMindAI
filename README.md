@@ -40,7 +40,7 @@ itineraryPlanner/
 
 ### 1️⃣ Clone the repository
 ```bash
-git clone https://github.com/yourusername/wandermind-ai.git
+git clone https://github.com/aishu136/wandermind-ai.git
 cd wandermind-ai
 ```
 
