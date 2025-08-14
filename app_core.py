@@ -6,6 +6,7 @@ from utils.llm import compose_itinerary_llm
 from integrations.amadeus_api import search_flights, search_hotels
 from rag.rag_travel_blogs import build_retriever_if_needed, rag_query
 from map_gen import generate_map_html
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -25,10 +26,16 @@ def _parse_inputs(state: TripState) -> TripState:
     date_parts = [d.strip() for d in i.get("dates", "").split(",") if d.strip()]
     summary = {
         "cities": cities,
-        "hops": [{"from": cities[idx], "to": cities[idx+1], "date": date_parts[idx] if idx < len(date_parts) else None}
-                 for idx in range(len(cities)-1)],
+        "hops": [
+            {
+                "from": cities[idx],
+                "to": cities[idx + 1],
+                "date": date_parts[idx] if idx < len(date_parts) else None,
+            }
+            for idx in range(len(cities) - 1)
+        ],
         "budget": i.get("budget"),
-        "interests": i.get("interests")
+        "interests": i.get("interests"),
     }
     state["summary"] = summary
     return state
@@ -42,22 +49,42 @@ def _live_data_node(use_live: bool):
 
         flights, hotels = [], []
         hops = state["summary"].get("hops", [])
+
+        # Search flights for each hop
         for hop in hops:
             origin = hop["from"][:3].upper() if len(hop["from"]) >= 3 else hop["from"].upper()
             dest = hop["to"][:3].upper() if len(hop["to"]) >= 3 else hop["to"].upper()
             date = hop["date"]
             fl = search_flights(origin, dest, date) if date else []
             flights.append(fl)
-        # Use last city as stay location for hotel search
+
+        # Search hotels in the last city
         if state["summary"]["cities"]:
             city_code = state["summary"]["cities"][-1][:3].upper()
             check_in = state["summary"]["hops"][-1]["date"] if state["summary"]["hops"] else None
+
+            # Auto-generate check_out date if not provided
             check_out = None
-            hotels = search_hotels(city_code, check_in, check_out) if check_in else []
+            if check_in:
+                try:
+                    check_out = (
+                        datetime.strptime(check_in, "%Y-%m-%d") + timedelta(days=2)
+                    ).strftime("%Y-%m-%d")
+                except ValueError:
+                    check_out = None
+
+            # Only search if both dates are valid
+            if check_in and check_out:
+                hotels = search_hotels(city_code, check_in, check_out)
+                if not hotels or (len(hotels) == 1 and "error" in hotels[0]):
+                    hotels = [{"note": f"No hotels found for {city_code}"}]
+            else:
+                hotels = [{"note": "Invalid or missing dates for hotel search"}]
 
         state["flights"] = flights
         state["hotels"] = hotels
         return state
+
     return node
 
 def _rag_node(use_rag: bool):
@@ -65,10 +92,11 @@ def _rag_node(use_rag: bool):
         if not use_rag:
             state["rag_tips"] = ""
             return state
-        build_retriever_if_needed()  # one-time build / persisted
+        build_retriever_if_needed()
         q = f"Pro tips for {', '.join(state['summary']['cities'])} for interests: {state['summary'].get('interests')}"
         state["rag_tips"] = rag_query(q)
         return state
+
     return node
 
 def _compose_node(state: TripState) -> TripState:
@@ -79,7 +107,7 @@ def _compose_node(state: TripState) -> TripState:
         budget=state["summary"].get("budget"),
         flights=state.get("flights", []),
         hotels=state.get("hotels", []),
-        rag_tips=state.get("rag_tips", "")
+        rag_tips=state.get("rag_tips", ""),
     )
     state["itinerary_text"] = txt
     return state

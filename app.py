@@ -56,6 +56,8 @@ if st.button("Generate Itinerary"):
 
     # -------- Flights / Hotels --------
     cols = st.columns(2)
+
+    # Flights
     with cols[0]:
         st.subheader("Flights")
         flights_data = result.get("flights", [])
@@ -68,7 +70,7 @@ if st.button("Generate Itinerary"):
             flight_texts = []
             for flight in flights_data:
                 if not isinstance(flight, dict):
-                    continue  # skip invalid entries
+                    continue
                 price = f"{flight.get('price', 'N/A')} {flight.get('currency', '')}"
                 for itin in flight.get("itineraries", []):
                     for seg in itin.get("segments", []):
@@ -89,15 +91,46 @@ if st.button("Generate Itinerary"):
         else:
             st.info("No flights data available.")
 
+    # Hotels
     with cols[1]:
         st.subheader("Hotels")
         hotels = result.get("hotels", [])
+
         if hotels and not (len(hotels) == 1 and "error" in hotels[0]):
-            st.json(hotels)
+            hotel_texts = []
+            for hotel in hotels:
+                # Use fallback if name is missing
+                name = hotel.get("name") or "(No Name Provided)"
+                rating = hotel.get("rating")
+                # Show rating only if valid
+                rating_str = f"⭐ {rating}/5" if isinstance(rating, (int, float, str)) and rating not in ("", None) else ""
+                offers = hotel.get("offers", [])
+
+                for offer in offers:
+                    check_in = offer.get("checkInDate", "N/A")
+                    check_out = offer.get("checkOutDate", "N/A")
+                    price_info = offer.get("price", {})
+                    total_price = price_info.get("total", "N/A")
+                    currency = price_info.get("currency", "")
+                    room_info = offer.get("room", {}).get("description", {}).get("text", "")
+                    cancel_policy = (
+                        offer.get("policies", {})
+                             .get("cancellations", [{}])[0]
+                             .get("description", {})
+                             .get("text", "N/A")
+                    )
+                    hotel_texts.append(
+                        f"🏨 {name} {rating_str}\n"
+                        f"📅 {check_in} → {check_out}\n"
+                        f"💰 {total_price} {currency}\n"
+                        f"🛏 {room_info}\n"
+                        f"❌ Cancellation: {cancel_policy}\n"
+                        + "-"*50
+                    )
+
+            st.text("\n".join(hotel_texts))
         else:
             st.info("No hotels found.")
-
-   
 
     # -------- RAG Tips --------
     if result.get("rag_tips"):
