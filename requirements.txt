@@ -7,3 +7,46 @@ python-dotenv>=1.0.1
 requests>=2.31.0
 streamlit
 pytest
+
+# flight & hotel
+amadeus
+
+# mapping
+folium
+streamlit-folium
+geopy
+
+# RAG
+requests
+beautifulsoup4
+chromadb
+sentence-transformers
+langchain
+huggingface-hub
+
+# UI & web
+streamlit
+fastapi
+uvicorn
+
+# Graph + LLM
+langgraph
+langchain
+langchain-aws
+boto3
+python-dotenv
+
+# Live data
+amadeus
+
+# RAG
+requests
+beautifulsoup4
+chromadb
+sentence-transformers
+langchain-community
+huggingface-hub
+
+# Maps
+folium
+streamlit-folium

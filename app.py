@@ -1,96 +1,123 @@
 import streamlit as st
-from langgraph.graph import StateGraph, START, END
-from langchain_aws.chat_models import ChatBedrock
-import os
-from dotenv import load_dotenv
-from typing import TypedDict
+import json
+from app_core import get_planner
 
-# Load AWS credentials from .env
-load_dotenv()
-os.environ["AWS_ACCESS_KEY_ID"] = os.getenv("AWS_ACCESS_KEY_ID")
-os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY")
-os.environ["AWS_REGION"] = os.getenv("AWS_REGION", "ap-south-1")
-
-# --- Define State Schema ---
-class TripState(TypedDict):
-    trip_details: str
-
-# --- Simple Agent Class ---
-class SimpleAgent:
-    def __init__(self, name, llm, system_prompt):
-        self.name = name
-        self.llm = llm
-        self.system_prompt = system_prompt
-
-    def __call__(self, state: TripState) -> TripState:
-        user_input = state.get("trip_details", "")
-        prompt = f"{self.system_prompt}\n\nUser request: {user_input}"
-        result = self.llm.invoke(prompt).content
-        return {"trip_details": result}
-
-# --- Bedrock Models ---
-destination_llm = ChatBedrock(model_id="amazon.titan-text-express-v1")
-budget_llm = ChatBedrock(model_id="mistral.mistral-large-2402-v1:0")
-itinerary_llm = ChatBedrock(model_id="meta.llama3-70b-instruct-v1:0")
-
-# --- Agents ---
-destination_agent = SimpleAgent(
-    name="DestinationResearchAgent",
-    llm=destination_llm,
-    system_prompt="You are a travel expert. Suggest 5 attractions and activities for each city."
-)
-
-budget_agent = SimpleAgent(
-    name="BudgetOptimizationAgent",
-    llm=budget_llm,
-    system_prompt="Optimize the itinerary based on the given budget, without removing all fun."
-)
-
-itinerary_agent = SimpleAgent(
-    name="ItineraryComposerAgent",
-    llm=itinerary_llm,
-    system_prompt="Combine all inputs into a day-by-day travel itinerary with short descriptions."
-)
-
-# --- Graph Setup ---
-graph = StateGraph(TripState)  # Pass schema here
-graph.add_node("destination", destination_agent)
-graph.add_node("budget", budget_agent)
-graph.add_node("itinerary", itinerary_agent)
-
-graph.add_edge(START, "destination")
-graph.add_edge("destination", "budget")
-graph.add_edge("budget", "itinerary")
-graph.add_edge("itinerary", END)
-
-app = graph.compile()
-
-# --- Streamlit UI ---
-st.set_page_config(page_title="Travel Itinerary Designer", page_icon="✈️")
+st.set_page_config(page_title="AI Travel Planner", page_icon="✈️", layout="wide")
 
 st.title("✈️ AI Travel Itinerary Designer")
-st.markdown("Powered by **LangGraph Workflow** + **AWS Bedrock**")
+st.caption("LangGraph + Bedrock + Live Data + RAG + MCP + A2A")
 
-destination = st.text_input("Enter destinations (comma-separated):", "Paris, Rome")
-travel_dates = st.text_input("Enter travel dates:", "2025-09-10 to 2025-09-17")
-budget = st.number_input("Enter your budget (USD):", min_value=500, max_value=20000, value=2000)
-interests = st.text_area("Your interests (e.g., museums, hiking, food, shopping):", "history, art, food")
+col1, col2 = st.columns(2)
+with col1:
+    destinations = st.text_input("Destinations (use '->' between cities)", "Paris -> Rome")
+    dates = st.text_input("Dates (comma-separated YYYY-MM-DD, aligns with hops)", "2025-09-10,2025-09-14")
+with col2:
+    budget = st.number_input("Total Budget (USD)", min_value=300, max_value=20000, value=2000)
+    interests = st.text_input("Interests (comma-separated)", "history, art, food")
+
+run_live = st.checkbox("Use Live Flights/Hotels (Amadeus)", value=False)
+run_rag = st.checkbox("Use RAG from blogs", value=False)
 
 if st.button("Generate Itinerary"):
-    with st.spinner("AI agents are planning your trip..."):
-        user_input = {
-            "trip_details": f"{travel_dates}, budget ${budget}, destinations: {destination}, interests: {interests}"
+    with st.spinner("Planning with agents..."):
+        planner = get_planner(use_live=run_live, use_rag=run_rag)
+        state_in = {
+            "inputs": {
+                "destinations": destinations,
+                "dates": dates,
+                "budget": int(budget),
+                "interests": interests
+            }
         }
-        result_state = app.invoke(user_input)
-        result = result_state.get("trip_details", "")
 
-    st.success("Itinerary Ready!")
-    st.subheader("📅 Your Travel Plan:")
-    st.write(result)
+        # Ensure invoke returns a dict
+        result = planner.invoke(state_in)
+        if not isinstance(result, dict):
+            try:
+                result = json.loads(result)
+            except Exception:
+                st.error("Planner did not return valid itinerary data.")
+                st.stop()
 
+    st.success("Itinerary ready!")
+
+    # -------- Summary --------
+    st.subheader("Summary")
+    summary_data = result.get("summary", {})
+    if isinstance(summary_data, dict):
+        summary_text = (
+            f"Cities: {', '.join(summary_data.get('cities', []))}\n"
+            f"Budget: {summary_data.get('budget', 'N/A')}\n"
+            f"Interests: {summary_data.get('interests', 'N/A')}"
+        )
+        st.text(summary_text)
+    else:
+        st.text(str(summary_data))
+
+    # -------- Flights / Hotels --------
+    cols = st.columns(2)
+    with cols[0]:
+        st.subheader("Flights")
+        flights_data = result.get("flights", [])
+
+        # Flatten if nested list-of-lists
+        if flights_data and isinstance(flights_data[0], list):
+            flights_data = [f for sublist in flights_data for f in sublist]
+
+        if flights_data:
+            flight_texts = []
+            for flight in flights_data:
+                if not isinstance(flight, dict):
+                    continue  # skip invalid entries
+                price = f"{flight.get('price', 'N/A')} {flight.get('currency', '')}"
+                for itin in flight.get("itineraries", []):
+                    for seg in itin.get("segments", []):
+                        dep = seg.get("departure", {})
+                        arr = seg.get("arrival", {})
+                        dep_time = dep.get("at", "")
+                        arr_time = arr.get("at", "")
+                        dep_code = dep.get("iataCode", "")
+                        arr_code = arr.get("iataCode", "")
+                        carrier = seg.get("carrierCode", "")
+                        number = seg.get("number", "")
+                        duration = seg.get("duration", "")
+                        flight_texts.append(
+                            f"Flight {flight.get('id')}: {dep_code} ({dep_time}) → {arr_code} ({arr_time}) "
+                            f"| {carrier}{number} | Duration: {duration} | Price: {price}"
+                        )
+            st.text("\n".join(flight_texts))
+        else:
+            st.info("No flights data available.")
+
+    with cols[1]:
+        st.subheader("Hotels")
+        hotels = result.get("hotels", [])
+        if hotels and not (len(hotels) == 1 and "error" in hotels[0]):
+            st.json(hotels)
+        else:
+            st.info("No hotels found.")
+
+   
+
+    # -------- RAG Tips --------
+    if result.get("rag_tips"):
+        st.subheader("RAG Tips")
+        st.write(result["rag_tips"])
+
+    # -------- Final Itinerary --------
+    st.subheader("Final Itinerary (LLM composed)")
+    itinerary_text = result.get("itinerary_text", "No itinerary available.")
+    st.text(itinerary_text)
+
+    # -------- Map --------
+    if result.get("map_html"):
+        st.subheader("Map")
+        st.components.v1.html(result["map_html"], height=600, scrolling=True)
+
+    # -------- Download Button --------
     st.download_button(
-        label="Download Itinerary as Text",
-        data=result.encode("utf-8"),
-        file_name="travel_itinerary.txt",
-        mime="text/plain"
+        "Download Itinerary (.txt)",
+        data=itinerary_text.encode("utf-8"),
+        file_name="itinerary.txt",
+        mime="text/plain",
     )
